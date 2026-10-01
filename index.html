@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fishing Isle 釣魚小島 — 開發總結簡報</title>
+<style>
+  :root{
+    --bg:#0a1420; --bg2:#0f1e2e; --panel:#152a3e; --panel2:#1b3550;
+    --line:#274a68; --text:#e8f1f8; --dim:#8fa9c0; --dim2:#6b869e;
+    --accent:#4ec9e8; --accent2:#ffd166; --good:#5ddc9a; --bad:#ff7b7b; --warn:#ffb454;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--text); overflow:hidden;
+    font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Heiti TC",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  #deck{position:fixed;inset:0;overflow:hidden;
+        --k:1;transform:scale(var(--k));transform-origin:center center}
+  .slide{
+    position:absolute;left:50%;top:50%;width:1280px;height:720px;
+    margin:-360px 0 0 -640px; padding:40px 64px 52px;
+    display:none; flex-direction:column; overflow:hidden;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(78,201,232,.10), transparent 60%),
+      radial-gradient(900px 500px at 5% 110%, rgba(255,209,102,.07), transparent 60%),
+      linear-gradient(160deg,var(--bg) 0%,var(--bg2) 100%);
+  }
+  .slide.on{display:flex; animation:fade .35s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  h1{font-size:56px;line-height:1.1;letter-spacing:-.5px}
+  h2{font-size:30px;line-height:1.2;letter-spacing:-.3px}
+  h3{font-size:16px;color:var(--accent);margin-bottom:9px;letter-spacing:.4px}
+  .sub{color:var(--dim);font-size:16px;margin-top:8px;line-height:1.55}
+  .kicker{color:var(--accent);font-size:13px;letter-spacing:3px;text-transform:uppercase;margin-bottom:14px}
+  .rule{height:3px;width:58px;background:var(--accent);margin:10px 0 18px;border-radius:2px}
+
+  .grow{flex:1;min-height:0}
+
+  .grid{display:grid;gap:16px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .g5{grid-template-columns:repeat(5,1fr)}
+  .g6{grid-template-columns:repeat(6,1fr)}
+
+  .card{
+    background:linear-gradient(180deg,var(--panel) 0%,rgba(21,42,62,.55) 100%);
+    border:1px solid var(--line); border-radius:11px; padding:13px 15px 12px;
+    display:flex;flex-direction:column;min-height:0;
+  }
+  .card .n{font-size:11.5px;color:var(--dim2);letter-spacing:1px;margin-bottom:4px}
+  .card .v{font-size:25px;font-weight:700;line-height:1.1;color:var(--text)}
+  .card .v small{font-size:13px;font-weight:500;color:var(--dim);margin-left:4px}
+  .card .d{font-size:12px;color:var(--dim);margin-top:6px;line-height:1.45}
+  .card.hi{border-color:var(--accent);box-shadow:0 0 0 1px rgba(78,201,232,.25) inset}
+  .card.ok{border-color:rgba(93,220,154,.45)}
+  .card.ok .v{color:var(--good)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--accent);font-weight:600;font-size:11.5px;letter-spacing:.5px;
+     text-transform:uppercase;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  td.mono{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:13.5px;
+          color:var(--accent2);white-space:nowrap}
+  .tbl-wrap{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+            padding:5px 10px;overflow:auto;min-height:0}
+
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;
+        font-weight:600;letter-spacing:.4px;white-space:nowrap}
+  .p-fix{background:rgba(93,220,154,.15);color:var(--good);border:1px solid rgba(93,220,154,.35)}
+  .p-open{background:rgba(255,123,123,.15);color:var(--bad);border:1px solid rgba(255,123,123,.35)}
+  .p-note{background:rgba(255,180,84,.14);color:var(--warn);border:1px solid rgba(255,180,84,.32)}
+  .p-info{background:rgba(78,201,232,.14);color:var(--accent);border:1px solid rgba(78,201,232,.32)}
+
+  ul.list{list-style:none;display:flex;flex-direction:column;gap:8px}
+  ul.list li{position:relative;padding-left:21px;font-size:14px;line-height:1.5;color:var(--text)}
+  ul.list li::before{content:"";position:absolute;left:4px;top:8px;width:6px;height:6px;
+                     border-radius:2px;background:var(--accent)}
+  ul.list.sm li{font-size:12.8px;padding-left:18px;line-height:1.45}
+  ul.list.sm li::before{top:7px;width:5px;height:5px}
+
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:24px;min-height:0}
+  .bar{height:9px;background:rgba(255,255,255,.07);border-radius:5px;overflow:hidden;margin-top:9px}
+  .bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--good));
+           border-radius:5px}
+
+  .quote{border-left:3px solid var(--accent);padding:8px 0 8px 16px;
+         color:var(--dim);font-size:13px;line-height:1.55;font-style:normal}
+
+  code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
+       background:rgba(78,201,232,.10);border:1px solid rgba(78,201,232,.2);
+       padding:1px 5px;border-radius:4px;color:var(--accent)}
+  pre{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:11.5px;
+      line-height:1.5;background:rgba(0,0,0,.32);border:1px solid var(--line);
+      border-radius:9px;padding:11px 13px;overflow:auto;color:#cfe3f2}
+  pre .c{color:var(--dim2)}
+  pre .g{color:var(--good)}
+  pre .b{color:var(--bad)}
+  pre .y{color:var(--accent2)}
+
+  /* chrome */
+  #bar{position:fixed;left:0;top:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--good));
+       z-index:50;transition:width .3s ease}
+  #dots{position:fixed;right:26px;bottom:22px;display:flex;gap:7px;z-index:50}
+  #dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.20);cursor:pointer;
+          transition:.2s;display:block}
+  #dots i.on{background:var(--accent);transform:scale(1.4)}
+  #pageno{position:fixed;left:72px;bottom:20px;color:var(--dim2);font-size:12.5px;
+          font-family:ui-monospace,Consolas,monospace;z-index:50;letter-spacing:1px}
+  #hint{position:fixed;right:26px;top:22px;color:var(--dim2);font-size:12px;z-index:50;
+        letter-spacing:.5px}
+
+  @media print{
+    @page{size:1280px 720px;margin:0}
+    body{overflow:visible;background:#fff}
+    #deck{position:static;transform:none;overflow:visible}
+    #dots,#pageno,#hint,#bar{display:none}
+    .slide{display:flex!important;position:relative;left:auto;top:auto;margin:0;
+           transform:none;width:1280px;height:720px;page-break-after:always;
+           animation:none}
+  }
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<div id="deck">
+
+<!-- 1 封面 -->
+<section class="slide on">
+  <div class="kicker">Roblox Studio 專案回顧</div>
+  <h1>Fishing Isle<br>釣魚小島</h1>
+  <div class="rule"></div>
+  <p class="sub" style="font-size:22px;max-width:820px">
+    從零到可玩核心版本：程式化生成整張地圖、開船出海、到四個魚域拋竿、<br>
+    收線小遊戲、賣魚賺錢、12 種魚的圖鑑。
+  </p>
+  <div class="grow"></div>
+  <div class="grid g4" style="margin-top:24px">
+    <div class="card"><div class="n">使用者回報問題</div><div class="v">17<small>項</small></div><div class="d">分三輪回報，全部已修</div></div>
+    <div class="card"><div class="n">自動化檢查</div><div class="v">206<small>項全過</small></div><div class="d">語法、資料完整性、平衡模擬</div></div>
+    <div class="card"><div class="n">工作區實例</div><div class="v">1,055<small>個</small></div><div class="d">全部由程式生成</div></div>
+    <div class="card hi"><div class="n">狀態</div><div class="v" style="color:var(--good)">可玩</div><div class="d">已注入並存檔到 Studio place</div></div>
+  </div>
+</section>
+
+<!-- 2 專案簡介 -->
+<section class="slide">
+  <h2>專案簡介</h2>
+  <div class="rule"></div>
+  <div class="two-col grow" style="margin-top:8px">
+    <div>
+      <h3>玩法核心</h3>
+      <ul class="list">
+        <li>開船出港，划到四座小島外的魚域</li>
+        <li>對著水面按左鍵拋竿，浮標下沉咬鉤時按空白鍵</li>
+        <li>按住空白鍵讓藍條對綠框，收線小遊戲</li>
+        <li>回漁人港魚貨市場賣魚賺錢</li>
+        <li>12 種魚、5 階稀有度、<b>魚種圖鑑</b>（K 鍵）</li>
+      </ul>
+      <h3 style="margin-top:26px">四個魚域</h3>
+      <table>
+        <tr><th>魚域</th><th>半徑</th><th>魚種</th></tr>
+        <tr><td>新手淺灘</td><td class="mono">84</td><td>鯷魚 / 沙丁魚 / 鯖魚</td></tr>
+        <tr><td>珊瑚礁</td><td class="mono">88</td><td>小丑魚 / 石斑魚 / 獅子魚</td></tr>
+        <tr><td>深海溝</td><td class="mono">90</td><td>旗魚 / 錦鯉 / 鮟鱇魚</td></tr>
+        <tr><td>月光潟湖</td><td class="mono">90</td><td>皇帶魚 / 槍魚 / 月光魚（傳說）</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>技術架構</h3>
+      <ul class="list sm">
+        <li><b>地圖零手工建模</b>：整張地圖由 <code>plugin/worldbuilder.lua</code> 程式化生成，約 1,000 個 Part</li>
+        <li><b>純資料設定</b>：魚種在 <code>src/shared.lua</code>、版圖在 <code>config/world.lua</code>，改參數不用動邏輯</li>
+        <li><b>三腳本架構</b>：SharedConfig / ServerMain / ClientMain</li>
+        <li><b>17 個 Remote</b>（含 2 個 RemoteFunction）做客戶端↔伺服器通訊</li>
+        <li><b>DataStore</b> 存金幣與圖鑑，全部包在 pcall 裡，失敗退回記憶體</li>
+      </ul>
+      <h3 style="margin-top:26px">硬約束（改名會壞掉）</h3>
+      <div class="quote">
+        海面零件必須叫 <code>Ocean</code>、<code>CanQuery=true</code>、<code>CanCollide=false</code>；<br>
+        海床 <code>Seabed</code> 必須 <code>CanCollide=true</code>；<br>
+        魚域半徑只存在模型的 <code>Radius</code> 屬性上。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3 開發方式 -->
+<section class="slide">
+  <h2>開發方式：全自動化，不手動點任何 Studio 按鈕</h2>
+  <div class="rule"></div>
+  <div class="two-col grow" style="margin-top:8px">
+    <div>
+      <h3>三條自動化線</h3>
+      <ul class="list">
+        <li><b>產生</b>：改 <code>src\</code> 後重跑產生器 → 透過 Studio MCP 的 <code>execute_luau</code> 直接注入到開啟中的 place，再建地圖</li>
+        <li><b>靜態檢查</b>：Luau 編譯全部 5 個檔案，抓語法錯誤不必開 Studio</li>
+        <li><b>執行期驗證</b>：自動按 Play、跑探針腳本量測幾何與數值、再關掉</li>
+      </ul>
+      <h3 style="margin-top:26px">為什麼要走 MCP</h3>
+      <p style="font-size:14.5px;line-height:1.65;color:var(--dim)">
+        這個 Studio 版本缺 <code>HttpService:Base64Decode</code>，外掛一載入就死，
+        所以改成由外部程序直接把腳本寫進 place。整份程式碼都是這樣灌進去的，
+        使用者不需要貼程式碼、也不用按任何匯入按鈕。
+      </p>
+    </div>
+    <div>
+      <h3>驗證迴圈</h3>
+      <pre><span class="c">-- 每一輪修改都跑一次</span>
+語法檢查      <span class="c">6 檔 × Luau compile</span>
+資料驗證      <span class="c">202 項完整性/平衡</span>
+魚形圖驗證    <span class="c">+4 項</span>
+     <span class="y">─────────────────</span>
+             <span class="g">206 項全過</span>
+打包往返      <span class="c">Sources.lua 逐位元組比對</span>
+<span class="c">───────────────</span>
+重建地圖      <span class="c">stop → build → verify</span>
+執行期量測    <span class="c">Palms / Roof / Stairs</span>
+             <span class="c">Rod / Boats / Codex</span>
+端到端釣魚    <span class="c">Cast→Bite→Fight→Caught</span></pre>
+      <div class="quote" style="margin-top:18px">
+        每一項結論都附上實測數字與取樣次數，<br>
+        沒有「應該可以」這種說法。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 使用者回報總覽 -->
+<section class="slide">
+  <h2>使用者回報的問題：17 項，三輪</h2>
+  <div class="rule"></div>
+  <p class="sub" style="margin:-8px 0 22px">全部已修正並實測驗證。</p>
+  <div class="grow" style="display:flex;flex-direction:column;gap:16px">
+
+    <div>
+      <h3>第二輪　<span class="pill p-fix">4 / 4 已修</span></h3>
+      <div class="grid g4">
+        <div class="card"><div class="v" style="font-size:19px">沒有魚竿不能釣</div><div class="d">進場沒拿到工具</div></div>
+        <div class="card"><div class="v" style="font-size:19px">樹葉歪了</div><div class="d">葉子跟著樹幹傾斜</div></div>
+        <div class="card"><div class="v" style="font-size:19px">沒有船可以開</div><div class="d">船生成點不對</div></div>
+        <div class="card"><div class="v" style="font-size:19px">地圖大一點</div><div class="d">海域與魚域太小</div></div>
+      </div>
+    </div>
+
+    <div>
+      <h3>第三輪　<span class="pill p-fix">7 / 7 已修</span></h3>
+      <div class="grid g4">
+        <div class="card"><div class="v" style="font-size:19px">有魚竿仍不能釣</div><div class="d">浮標永不咬鉤</div></div>
+        <div class="card"><div class="v" style="font-size:19px">魚竿做精細</div><div class="d">只有一根光棍</div></div>
+        <div class="card"><div class="v" style="font-size:19px">船跑到水裡</div><div class="d">浮力變成吸力</div></div>
+        <div class="card"><div class="v" style="font-size:19px">市場棚子</div><div class="d">市場沒有屋頂</div></div>
+        <div class="card"><div class="v" style="font-size:19px">樹高一點</div><div class="d">整棵樹太矮</div></div>
+        <div class="card"><div class="v" style="font-size:19px">釣魚圖鑑</div><div class="d">要能看收集進度</div></div>
+        <div class="card"><div class="v" style="font-size:19px">出生點燈塔</div><div class="d">主島要地標</div></div>
+      </div>
+    </div>
+
+    <div>
+      <h3>第四輪　<span class="pill p-fix">6 / 6 已修</span>　<span style="font-size:13px;color:var(--dim2)">本次重點</span></h3>
+      <div class="grid g3">
+        <div class="card hi"><div class="v" style="font-size:19px">魚竿太短了</div><div class="d">改成 12.7 studs 長竿</div></div>
+        <div class="card hi"><div class="v" style="font-size:19px">樹倒下了我要站著的</div><div class="d">樹幹橫躺，補 90° 旋轉</div></div>
+        <div class="card hi"><div class="v" style="font-size:19px">市場棚子上下反了</div><div class="d">屋脊與簷口顛倒</div></div>
+        <div class="card hi"><div class="v" style="font-size:19px">船有時突然沉下去</div><div class="d">加四道防沉保險</div></div>
+        <div class="card hi"><div class="v" style="font-size:19px">島邊緣設立台階</div><div class="d">每島 3 段、21 級石階</div></div>
+        <div class="card hi"><div class="v" style="font-size:19px">圖鑑新增魚的圖</div><div class="d">純 GUI 畫出 12 種魚</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 根因分析 -->
+<section class="slide">
+  <h2>根因分析：症狀 vs 真正的原因</h2>
+  <div class="rule"></div>
+  <p class="sub" style="margin:-8px 0 20px">看起來是「某個東西壞掉」，實際上多是 Roblox API 的細節。</p>
+  <div class="tbl-wrap grow" style="padding:4px 12px">
+    <table>
+      <tr><th style="width:19%">症狀</th><th style="width:41%">真正原因</th><th style="width:40%">修法</th></tr>
+      <tr>
+        <td><b>樹倒下了</b></td>
+        <td>Roblox 圓柱的軸向是<b>本地 X</b>（躺平的）。
+            <code>makePalm()</code> 只疊了傾斜角，<b>少了 90° 的 Z 旋轉</b>，
+            每一段樹幹都躺在沙灘上。整棵樹的「高度」變成樹幹直徑（2～5 studs）。</td>
+        <td>每段樹幹疊上 <code>CFrame.Angles(0, 0, math.rad(90) + lean)</code>；
+            樹冠位置同樣加 90°。</td>
+      </tr>
+      <tr>
+        <td><b>棚子上下反了</b></td>
+        <td>屋頂木板的參數 <code>t</code> 方向寫反：<code>bx = sx*HALF_W*(1-t)</code>
+            讓 <code>t=0</code> 落在<b>外緣</b>、<code>t=1</code> 落在<b>中央</b>，
+            結果中央低、兩邊高。</td>
+        <td><code>bx = sx*HALF_W*t</code>（0 = 屋脊最高），
+            旋轉改 <code>-sx*pitch</code> 讓外側那端比內側低。</td>
+      </tr>
+      <tr>
+        <td><b>船突然沉下去</b></td>
+        <td>伺服器每幀<b>直接覆寫</b> <code>AssemblyLinearVelocity.Y</code>，
+            重力（196.2）一直往下拉。互撞、卡在島壁、彈飛後自由落體時，
+            寫進去的速度會被碰撞持續抵消，只靠彈簧救不回來。</td>
+        <td>加 4 個參數：限制空中掉落速度、深度超限額外加力、
+            計時後直接 <code>PivotTo</code> 抬回水面、生產線上移避免掉到 -140。</td>
+      </tr>
+      <tr>
+        <td><b>浮標永不咬鉤</b></td>
+        <td>魚線的 <code>line.Color</code> 必須是 <code>ColorSequence</code>、
+            <code>line.Transparency</code> 必須是 <code>NumberSequence</code>。
+            給錯型別在這裡 error，<b>整個 castSession 中斷</b>。</td>
+        <td>兩個屬性都改成對應的 Sequence 型別。</td>
+      </tr>
+      <tr>
+        <td><b>落水的玩家消失</b></td>
+        <td><code>Seabed</code> 原本 <code>CanCollide=false</code>，
+            玩家穿過海床一路掉到 <code>FallenPartsDestroyHeight</code>（-140）
+            被引擎刪掉，<b>沒有任何錯誤訊息</b>。</td>
+        <td><code>Seabed.CanCollide = true</code>。</td>
+      </tr>
+      <tr>
+        <td><b>遊戲整個死掉</b></td>
+        <td><code>GetDataStore()</code> 在<b>未發布</b>的 place 會直接 throw。
+            一旦 throw，後面連接 <code>PlayerAdded</code>（發魚竿）
+            和主迴圈（浮力、咬鉤判定）的程式碼<b>全部不會執行</b>。</td>
+        <td>整段包進 <code>pcall</code>，失敗退回記憶體存檔。<b>未發布也照樣能玩。</b></td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- 6 修正 1-2 -->
+<section class="slide">
+  <h2>第四輪修正　1–2：魚竿加長、椰子樹站直</h2>
+  <div class="rule"></div>
+  <div class="two-col grow" style="margin-top:6px">
+    <div>
+      <h3>1. 魚竿太短　<span class="pill p-fix">已修</span></h3>
+      <div class="grid g3" style="margin-bottom:14px">
+        <div class="card ok"><div class="n">全長</div><div class="v">12.70<small>studs</small></div><div class="d">原本僅 5.9</div></div>
+        <div class="card ok"><div class="n">零件數</div><div class="v">16<small>個</small></div><div class="d">原本 14</div></div>
+        <div class="card ok"><div class="n">竿身節數</div><div class="v">4<small>節</small></div><div class="d">原本 3 節</div></div>
+      </div>
+      <ul class="list sm">
+        <li>四節竿身由粗到細：<b>0.30 → 0.23 → 0.17 → 0.11</b> studs</li>
+        <li>節與節<b>互相咬住 0.06 studs</b>，遠看不會斷成兩截
+            （實測接縫間隙 -0.09 / -0.06 / -0.06，全部 ≤ 0）</li>
+        <li>握把加長到 2.4，<code>Grip</code> / <code>GripPos</code> 對齊握把下段</li>
+      </ul>
+      <pre style="margin-top:14px"><span class="c">-- 四節竿身的上下界（互相咬住 0.06）</span>
+-1.55 ├──── 2.85 ├─── 5.55 ├─── 7.75 ── 9.45 <span class="y">← 竿尖</span>
+  <span class="c">Blank1      Blank2   Blank3   Blank4</span>
+  <span class="c">w=0.30     w=0.23   w=0.17   w=0.11</span></pre>
+    </div>
+    <div>
+      <h3>2. 樹倒下了　<span class="pill p-fix">已修</span></h3>
+      <div class="grid g3" style="margin-bottom:14px">
+        <div class="card ok"><div class="n">椰子樹</div><div class="v">16<small>棵</small></div><div class="d">全部站直</div></div>
+        <div class="card ok"><div class="n">樹心離地</div><div class="v">24.7–33<small>studs</small></div><div class="d">修前僅 2.3–5.1</div></div>
+        <div class="card ok"><div class="n">歪掉的葉子</div><div class="v">0<small>/ 112</small></div><div class="d">最陡 0.44</div></div>
+      </div>
+      <pre>CFrame.new(pos)
+  * CFrame.Angles(<span class="b">0, 0, UP + lean</span>)   <span class="c">-- 90° 補在這</span>
+  * CFrame.new(segH * (i - 0.5), 0, 0)
+
+<span class="c">-- UP = math.rad(90)：把躺平的軸掰成朝上</span></pre>
+      <ul class="list sm" style="margin-top:14px">
+        <li>葉子改從<b>站直的座標系</b>往外長，不再跟著樹幹傾斜</li>
+        <li>下垂角度壓在 10～24 度（原本 14～34 度，垂太多看起來像躺在半空）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 7 修正 3-4 -->
+<section class="slide">
+  <h2>第四輪修正　3–4：屋頂方向、船防沉</h2>
+  <div class="rule"></div>
+  <div class="two-col grow" style="margin-top:6px">
+    <div>
+      <h3>3. 市場棚子上下反了　<span class="pill p-fix">已修</span></h3>
+      <pre style="margin-bottom:14px">local t = (i - 0.5) / 7        <span class="c">-- 0 = 屋脊，1 = 簷口</span>
+local bx = sx * HALF_W * <span class="g">t</span>          <span class="c">-- 修：(1 - t)</span>
+local by = RIDGE - SLOPE * t
+plank.CFrame = CFrame.new(pos + Vector3.new(bx, by, 0))
+  * CFrame.Angles(0, 0, <span class="g">-sx * pitch</span>)  <span class="c">-- 修：sx * pitch</span></pre>
+      <table>
+        <tr><th>位置</th><th>修前 y</th><th>修後 y</th></tr>
+        <tr><td>屋脊 <code>Ridge</code></td><td class="mono">17.20</td><td class="mono">17.20</td></tr>
+        <tr><td>中央木片（最高）</td><td class="mono">12.37</td><td class="mono g">16.83</td></tr>
+        <tr><td>兩側簷口（最低）</td><td class="mono">16.83</td><td class="mono g">12.37</td></tr>
+      </table>
+      <ul class="list sm" style="margin-top:14px">
+        <li>14 片木板，<b>左坡 +30.3° / 右坡 -30.3°</b>，兩坡方向相反</li>
+        <li>驗收標準：屋脊 y 必須<b>高於</b>所有木板，且左右兩坡仰角一正一負</li>
+      </ul>
+    </div>
+    <div>
+      <h3>4. 船有時突然沉下去　<span class="pill p-fix">已修</span></h3>
+      <p style="font-size:14.5px;color:var(--dim);line-height:1.6;margin-bottom:14px">
+        四種下沉情境各加一道保險，而不是只把彈簧係數調大。
+      </p>
+      <table>
+        <tr><th>參數</th><th>值</th><th>擋什麼</th></tr>
+        <tr><td class="mono">FreeFallSpeed</td><td class="mono">26</td><td>被彈飛後像石頭自由落體</td></tr>
+        <tr><td class="mono">RescueDepth</td><td class="mono">6</td><td>互撞／被壓到吃水線以下</td></tr>
+        <tr><td class="mono">RescueTime</td><td class="mono">1.2s</td><td>卡在島壁裡，碰撞鎖死自由度</td></tr>
+        <tr><td class="mono">RespawnY</td><td class="mono">-18</td><td>掉出地圖（原本 -40，太深）</td></tr>
+      </table>
+      <h3 style="margin-top:20px">實測：直接把船推到水面下 15 studs</h3>
+      <table>
+        <tr><th>時間</th><th>y</th><th>SinkTime</th></tr>
+        <tr><td class="mono">t = 0.0s</td><td class="mono">-16.00</td><td class="mono">—</td></tr>
+        <tr><td class="mono">t = 0.5s</td><td class="mono">-11.17</td><td class="mono">0.50</td></tr>
+        <tr><td class="mono">t = 1.0s</td><td class="mono">-6.31</td><td class="mono">0</td></tr>
+        <tr><td class="mono">t = 2.0s</td><td class="mono g">-1.01</td><td class="mono">0</td></tr>
+        <tr><td class="mono">t = 6.1s</td><td class="mono g">-0.97</td><td class="mono">0</td></tr>
+      </table>
+      <p style="font-size:13px;color:var(--dim);margin-top:10px">
+        1.5 秒內自己浮回吃水線，之後 11 次取樣穩定在 -0.96 ～ -1.03。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- 8 修正 5-6 -->
+<section class="slide">
+  <h2>第四輪修正　5–6：島邊台階、圖鑑魚圖</h2>
+  <div class="rule"></div>
+  <div class="two-col grow" style="margin-top:6px">
+    <div>
+      <h3>5. 島邊緣設立台階　<span class="pill p-fix">已修</span></h3>
+      <p style="font-size:14.5px;color:var(--dim);line-height:1.6;margin-bottom:14px">
+        島的主體是從 y=-8 拉到島頂的垂直圓柱，光靠跳是上不去的。
+      </p>
+      <div class="grid g3" style="margin-bottom:14px">
+        <div class="card ok"><div class="n">每座島</div><div class="v">3<small>段梯</small></div><div class="d">避開碼頭方向</div></div>
+        <div class="card ok"><div class="n">總級數</div><div class="v">21<small>級</small></div><div class="d">每段 7 級</div></div>
+        <div class="card ok"><div class="n">欄杆柱</div><div class="v">18<small>根</small></div><div class="d">每三級一根</div></div>
+      </div>
+      <table>
+        <tr><th>島</th><th>台階</th><th>級數 / 柱</th><th>級差</th></tr>
+        <tr><td>漁人港</td><td class="mono">3 段</td><td class="mono">21 / 18</td><td><span class="pill p-fix">好走</span></td></tr>
+        <tr><td>珊瑚島</td><td class="mono">3 段</td><td class="mono">21 / 18</td><td><span class="pill p-fix">好走</span></td></tr>
+        <tr><td>斷崖礁</td><td class="mono">3 段</td><td class="mono">21 / 18</td><td><span class="pill p-fix">好走</span></td></tr>
+        <tr><td>月光島</td><td class="mono">3 段</td><td class="mono">21 / 18</td><td><span class="pill p-fix">好走</span></td></tr>
+      </table>
+      <ul class="list sm" style="margin-top:14px">
+        <li>三段分別在<b>碼頭正對面</b>與<b>左右各 90 度</b>，不會跟碼頭支柱穿模</li>
+        <li>最高階與島頂齊平、最低階略低於水面；每級都做到海床以下，不會有浮空的縫</li>
+        <li>級差全部在 <b>±1.2 studs</b> 以內（玩家走得上）</li>
+        <li>材質跟著島的風格走：熱帶木階、月光石階、斷崖岩階</li>
+      </ul>
+    </div>
+    <div>
+      <h3>6. 圖鑑新增魚的圖　<span class="pill p-fix">已修</span></h3>
+      <p style="font-size:14.5px;color:var(--dim);line-height:1.6;margin-bottom:14px">
+        Roblox 沒有三角形、也沒有圖片素材，所以整隻魚用 GUI 圖元拼出來。
+      </p>
+      <div class="grid g4" style="margin-bottom:14px">
+        <div class="card ok"><div class="n">體型輪廓</div><div class="v">6<small>種</small></div><div class="d">slim/round/long/flat/sword/spiky</div></div>
+        <div class="card ok"><div class="n">花紋</div><div class="v">4<small>種</small></div><div class="d">素色/縱紋/斑點/發光</div></div>
+        <div class="card ok"><div class="n">配色</div><div class="v">12<small>組</small></div><div class="d">每種魚都不一樣</div></div>
+        <div class="card ok"><div class="n">圖鑑列</div><div class="v">12<small>列</small></div><div class="d">視窗 760×520</div></div>
+      </div>
+      <pre>尾鰭(×2 斜 34°) + 背鰭 + 腹鰭 + 身體(圓角)
++ 眼睛 + 瞳孔
++ 旗魚/槍魚：長吻　　獅子魚：棘刺　　發光魚：光暈
++ 縱紋 / 斑點（ClipsDescendants 不會畫出輪廓外）</pre>
+      <div class="tbl-wrap" style="margin-top:14px;padding:2px 10px">
+        <table>
+          <tr><th>狀態</th><th>圖元</th><th>組成</th></tr>
+          <tr><td>未捕獲</td><td class="mono">9</td><td>深色剪影 + 標「？」，不畫眼睛</td></tr>
+          <tr><td>槍魚（已捕獲）</td><td class="mono g">17</td><td>5 鰭身 + 3 縱紋 + 眼 + 瞳 + 長吻</td></tr>
+        </table>
+      </div>
+      <p style="font-size:13px;color:var(--dim);margin-top:10px">
+        未捕獲的魚保留懸念：看得到稀有度與出沒魚域，但看不到長相與體重紀錄。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- 9 開發中的技術障礙 -->
+<section class="slide">
+  <h2>開發中遇到的技術障礙</h2>
+  <div class="rule"></div>
+  <div class="two-col grow" style="margin-top:6px">
+    <div>
+      <h3>這個 Studio 版本缺一堆 API</h3>
+      <p style="font-size:13.5px;color:var(--dim);margin-bottom:10px;line-height:1.55">
+        用了會直接噴錯，而且那支腳本會整個死掉。
+      </p>
+      <div class="tbl-wrap" style="padding:2px 10px">
+        <table>
+          <tr><th>不能用</th><th>改成</th></tr>
+          <tr><td class="mono">HttpService:Base64Decode</td><td>長括號字串封裝</td></tr>
+          <tr><td class="mono">Enum.Material.Cork</td><td>Enum.Material.Wood</td></tr>
+          <tr><td class="mono">Enum.KeyCode.KeyB / .KeyH</td><td>Enum.KeyCode.B / .H</td></tr>
+          <tr><td class="mono">Tool:ParentInContainer</td><td>tool.Parent = container</td></tr>
+          <tr><td class="mono">Color3:Lerp()</td><td>自寫 lerpColor helper</td></tr>
+          <tr><td class="mono">Folder.ChildRemoving</td><td>DescendantRemoving</td></tr>
+          <tr><td class="mono">Model.CFrame（無 PrimaryPart）</td><td>GetPivot() / PivotTo()</td></tr>
+          <tr><td class="mono">debug.traceback()</td><td>改用「記錄事件」追</td></tr>
+        </table>
+      </div>
+      <div class="quote" style="margin-top:14px">
+        base64 換成長括號字串之後不只看「有沒有編譯過」，<br>
+        還寫了往返驗證：<b>真的執行產生的 <code>Sources.lua</code>（fengari）</b>，
+        把三段字串取出來跟 <code>src\</code> 的原始檔逐位元組比對。<br>
+        <span class="mono" style="font-size:12px">8,011 / 39,673 / 45,914 位元組，總和與加權總和全部相符</span>
+      </div>
+    </div>
+    <div>
+      <h3>環境限制</h3>
+      <ul class="list sm">
+        <li><code>game:SaveAs()</code> 在 MCP 沙箱不可用 → 存檔靠 Win32 送 Ctrl+S</li>
+        <li>MCP 的 Luau 解析器<b>不接受鏈式呼叫</b>（<code>a:WaitForChild("x"):Connect()</code>），必須拆兩行</li>
+        <li>PowerShell 5.1 終端是 Big5，寫含跳脫引號的 steps JSON 會炸 → 一律用 <code>.mjs</code> 產生器</li>
+        <li>Studio 關閉時 MCP 回報的 <code>name</code> 欄位可能是 <code>null</code></li>
+        <li>Edit 模式<b>沒有</b> Server 資料模型，量地圖要用 <code>datamodel_type: "Edit"</code></li>
+        <li><code>Humanoid.SeatPart</code> 唯讀、<code>seat:Sit()</code> 無法真的坐下 → 測試用浮空平台</li>
+        <li>測試平台必須 <code>CanQuery = false</code>，且玩家要轉身背對陸地，否則拋竿會回報「前面有東西擋住」</li>
+        <li>伺服器 <code>Fire()</code> 到客戶端的 BindableEvent <b>收不到</b> → 測試改用「資料夾實例身份」當觸發</li>
+        <li>無法自行檢視圖片（截圖存了讀不到）→ 外觀只能靠<b>程式化幾何驗證</b>，不能靠看</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 10 最終成果：地圖 -->
+<section class="slide">
+  <h2>最終成果（一）：地圖與外觀</h2>
+  <div class="rule"></div>
+  <div class="grid g5" style="margin-bottom:20px">
+    <div class="card hi"><div class="n">工作區實例</div><div class="v">1,055</div><div class="d">全部程式生成</div></div>
+    <div class="card"><div class="n">島</div><div class="v">4</div><div class="d">漁人港 + 3 小島</div></div>
+    <div class="card"><div class="n">船</div><div class="v">6</div><div class="d">主島 3 / 小島各 1</div></div>
+    <div class="card"><div class="n">魚域</div><div class="v">4</div><div class="d">半徑 84–90</div></div>
+    <div class="card"><div class="n">椰子樹</div><div class="v">16</div><div class="d">全部站直</div></div>
+  </div>
+  <div class="two-col grow" style="margin-top:0">
+    <div>
+      <h3>量測結果</h3>
+      <div class="tbl-wrap" style="padding:2px 10px">
+        <table>
+          <tr><th>項目</th><th>實測值</th></tr>
+          <tr><td>海面 <code>Ocean</code></td><td class="mono">2048 × 1 × 2048　CanQuery=true / CanCollide=false</td></tr>
+          <tr><td>海床 <code>Seabed</code></td><td class="mono">CanCollide = true</td></tr>
+          <tr><td>魚域半徑（模型屬性）</td><td class="mono">84 / 88 / 90 / 90</td></tr>
+          <tr><td>椰子樹樹心離地</td><td class="mono">24.7 – 33.0 studs</td></tr>
+          <tr><td>葉子傾斜 &gt; 45°</td><td class="mono g">0 / 112</td></tr>
+          <tr><td>市場屋頂</td><td class="mono">屋脊 17.20 / 中央 16.83 / 簷口 12.37</td></tr>
+          <tr><td>屋頂兩坡仰角</td><td class="mono">+30.3° / -30.3°</td></tr>
+          <tr><td>台階（四島合計）</td><td class="mono">12 段 / 84 級 / 72 柱</td></tr>
+        </table>
+      </div>
+    </div>
+    <div>
+      <h3>燈塔與市場（第三輪新增）</h3>
+      <ul class="list sm">
+        <li><b>燈塔</b>（出生點地標）：<code>LighthouseBase1..3</code> / <code>LighthouseBand</code> /
+            <code>LighthouseDeck</code> / <code>RailingPost</code> / <code>RailingRail</code> /
+            <code>LighthouseLamp</code> / <code>LighthouseRoof</code> / <code>LighthouseSpire</code> /
+            <code>LighthouseVane</code> — 齊全</li>
+        <li><b>魚貨市場</b>：4 根柱 + 2 根簷樑 + 屋脊 + 14 片屋頂木板 + 波浪裙邊 + 招牌</li>
+      </ul>
+      <h3 style="margin-top:22px">這一輪最有價值的體會</h3>
+      <div class="quote">
+        「樹倒下」與「棚子反了」看起來是美術問題，<br>
+        實際上是一個角度參數寫反、一個 90° 旋轉漏寫。<br>
+        <span style="color:var(--dim2)">沒有截圖能看，只能靠幾何量測找出來。</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 11 最終成果：玩法 -->
+<section class="slide">
+  <h2>最終成果（二）：完整釣魚循環</h2>
+  <div class="rule"></div>
+  <p class="sub" style="margin:-8px 0 20px">端到端實測，每一輪都走完同一條路徑。</p>
+  <div class="grow" style="display:flex;flex-direction:column;gap:18px">
+    <div class="tbl-wrap" style="padding:4px 12px">
+      <table>
+        <tr><th style="width:20%">階段</th><th>驗證方式</th><th style="width:22%">結果</th></tr>
+        <tr><td><code>CastStarted</code></td><td>對水面按左鍵，伺服器開一個 castSession</td><td><span class="pill p-fix">通過</span></td></tr>
+        <tr><td><code>Bite</code></td><td>浮標下沉 + 跳出「咬鉤了！」</td><td><span class="pill p-fix">通過</span></td></tr>
+        <tr><td><code>HookRequest</code></td><td>按空白鍵上鉤</td><td><span class="pill p-fix">通過</span></td></tr>
+        <tr><td><code>FightStart</code></td><td>收線小遊戲開始，魚到處游還會衝刺</td><td><span class="pill p-fix">通過</span></td></tr>
+        <tr><td><code>Caught</code></td><td>實測捕到槍魚 208kg、月光魚 143kg</td><td><span class="pill p-fix">通過</span></td></tr>
+      </table>
+    </div>
+    <div class="grid g4">
+      <div class="card ok"><div class="n">槍魚（史詩）</div><div class="v">208<small>kg</small></div><div class="d">價值 2,290 金幣</div></div>
+      <div class="card ok"><div class="n">月光魚（傳說）</div><div class="v">143<small>kg</small></div><div class="d">價值 4,987 金幣</div></div>
+      <div class="card"><div class="n">賣魚</div><div class="v">50 → 3,690</div><div class="d">金幣入帳，「最大魚」同步更新</div></div>
+      <div class="card"><div class="n">圖鑑</div><div class="v">0/12 → 1/12</div><div class="d">該列由「[L] ？？？」變成「[OK] 槍魚 史詩」</div></div>
+    </div>
+    <div class="grid g2">
+      <div class="card">
+        <div class="n">魚域篩選</div><div class="v" style="font-size:21px">正確</div>
+        <div class="d">月光潟湖只出史詩／傳說，淺灘只出普通魚；同一條魚在不同魚域的賣價不同</div>
+      </div>
+      <div class="card">
+        <div class="n">反覆測試</div><div class="v" style="font-size:21px">可重現</div>
+        <div class="d">每次跑 E2E 都是同一條路徑：安裝測試漁夫 → Play → 拋竿 → 上鉤 → 圖鑑 → 賣魚 → UI 探針</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 12 最終成果：UI + 技術指標 -->
+<section class="slide">
+  <h2>最終成果（三）：介面與穩定性</h2>
+  <div class="rule"></div>
+  <div class="two-col grow" style="margin-top:6px">
+    <div>
+      <h3>介面（全部中文字）</h3>
+      <table>
+        <tr><th>快捷鍵</th><th>功能</th></tr>
+        <tr><td class="mono">左鍵</td><td>拋竿</td></tr>
+        <tr><td class="mono">空白鍵</td><td>咬鉤時上鉤 / 收線</td></tr>
+        <tr><td class="mono">B</td><td>背包（賣魚、看魚種）</td></tr>
+        <tr><td class="mono">K</td><td>魚種圖鑑</td></tr>
+        <tr><td class="mono">H</td><td>玩法說明</td></tr>
+        <tr><td class="mono">Esc</td><td>關閉彈窗 / 收竿</td></tr>
+        <tr><td class="mono">E</td><td>在魚貨市場賣魚</td></tr>
+      </table>
+      <div class="grid g2" style="margin-top:16px">
+        <div class="card"><div class="n">彈窗</div><div class="v">3<small>個</small></div><div class="d">圖鑑 / 背包 / 玩法說明</div></div>
+        <div class="card"><div class="n">圖鑑視窗</div><div class="v">760×520</div><div class="d">12 列魚種、可捲動</div></div>
+      </div>
+    </div>
+    <div>
+      <h3>穩定性</h3>
+      <ul class="list sm">
+        <li><b>未發布的 place 照樣能玩</b>：DataStore 失敗只退回記憶體，遊戲迴圈不受影響
+            （實測回報 <code>StudioAccessToApisNotAllowed</code> / 502 / 403，遊戲照跑）</li>
+        <li>船在水面穩定：6 艘連續取樣 y 全部 -0.97（<code>FloatY</code> = -0.75）</li>
+        <li>下沉測試：推到水面下 15 studs，1.5 秒浮回 -1.00，之後 11 次取樣 -0.96 ～ -1.03</li>
+        <li>模擬驗算：從 0 沉到重生點 y=-18 只需 <b>1.5 秒</b>（< 4 秒門檻）</li>
+        <li>Output 沒有紅字（DataStore 與雲端 Terrain 提示屬預期）</li>
+        <li>測試殘留掃描：<b>沒有任何</b> <code>TestFisher</code> / <code>TestPlat</code> /
+            <code>__CodexTestHook</code> 殘留</li>
+      </ul>
+      <h3 style="margin-top:22px">通訊層</h3>
+      <div class="grid g3">
+        <div class="card"><div class="n">Remote 總數</div><div class="v">17</div><div class="d">含 2 個 RemoteFunction</div></div>
+        <div class="card"><div class="n">船 tag</div><div class="v">6</div><div class="d">FishingBoat</div></div>
+        <div class="card"><div class="n">魚域 tag</div><div class="v">4</div><div class="d">FishingArea</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 13 自動化驗證 -->
+<section class="slide">
+  <h2>自動化驗證：206 項全過</h2>
+  <div class="rule"></div>
+  <div class="two-col grow" style="margin-top:6px">
+    <div>
+      <h3>不開 Studio 就能跑</h3>
+      <div class="tbl-wrap" style="padding:2px 10px">
+        <table>
+          <tr><th>檢查項目</th><th>內容</th></tr>
+          <tr><td>Luau 語法</td><td>6 個檔案全部編譯通過（含產生的 <code>Sources.lua</code>）</td></tr>
+          <tr><td>打包往返</td><td>執行 <code>Sources.lua</code>，三段字串跟原始檔逐位元組相同</td></tr>
+          <tr><td>資料完整性</td><td>魚種欄位、Id 唯一、魚域引用的魚都存在、12 種魚都有魚域</td></tr>
+          <tr><td>版圖合理性</td><td>島與魚域不重疊、碼頭末端走得到魚域、出生點在主島範圍內</td></tr>
+          <tr><td>魚形圖資料</td><td>12 種魚都有 Body/Fin/Shape/Pattern、配色不重複、至少 4 種體型 3 種花紋</td></tr>
+          <tr><td>平衡模擬</td><td>12 種魚 × 4 種玩家程度 × 300 次</td></tr>
+          <tr><td>浮力參數</td><td>Stiffness &gt; 1、沉到重生點 &lt; 4 秒、垂直速度上限合理</td></tr>
+          <tr><td>經濟</td><td>賣價落在體重區間內、入門魚很快能買到下一把運氣</td></tr>
+        </table>
+      </div>
+    </div>
+    <div>
+      <h3>平衡模擬結果（每檔 300 次）</h3>
+      <div class="tbl-wrap" style="padding:2px 10px">
+        <table>
+          <tr><th>魚種</th><th>難度</th><th>時限</th><th>普通勝率</th><th>新手勝率</th><th>手殘勝率</th></tr>
+          <tr><td>鯷魚 <small>普通</small></td><td class="mono">0.18</td><td class="mono">26s</td><td class="mono">100%</td><td class="mono">100%</td><td class="mono">100%</td></tr>
+          <tr><td>石斑魚 <small>優良</small></td><td class="mono">0.44</td><td class="mono">33s</td><td class="mono">100%</td><td class="mono">100%</td><td class="mono">98%</td></tr>
+          <tr><td>旗魚 <small>稀有</small></td><td class="mono">0.58</td><td class="mono">37s</td><td class="mono">100%</td><td class="mono">98%</td><td class="mono">84%</td></tr>
+          <tr><td>鮟鱇魚 <small>稀有</small></td><td class="mono">0.62</td><td class="mono">38s</td><td class="mono">100%</td><td class="mono">97%</td><td class="mono b">74%</td></tr>
+          <tr><td>皇帶魚 <small>史詩</small></td><td class="mono">0.72</td><td class="mono">40s</td><td class="mono">100%</td><td class="mono">93%</td><td class="mono b">59%</td></tr>
+          <tr><td>槍魚 <small>史詩</small></td><td class="mono">0.78</td><td class="mono">42s</td><td class="mono">100%</td><td class="mono b">84%</td><td class="mono b">43%</td></tr>
+          <tr><td>月光魚 <small>傳說</small></td><td class="mono">0.90</td><td class="mono">45s</td><td class="mono">100%</td><td class="mono b">59%</td><td class="mono b">21%</td></tr>
+        </table>
+      </div>
+      <ul class="list sm" style="margin-top:14px">
+        <li>高手在每一種魚上都是 <b>100% 勝率</b>，不會被判超時</li>
+        <li>收線秒數隨難度<b>單調增加</b>：鯷魚 4.0s → 月光魚 7.6s</li>
+        <li>難度的差別是「操作容錯」：月光魚高手 7.6s → 新手 12.6s</li>
+        <li>手感最差的玩家在史詩／傳說魚上會真的失手（59% / 43% / 21%），
+            <b>不是全部穩贏</b></li>
+        <li>傳說魚賣價約 <b>3,380 金幣</b>（初始 50），入門魚約 36 金幣，目標感明確</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 14 已知限制 -->
+<section class="slide">
+  <h2>已知限制與未來規劃</h2>
+  <div class="rule"></div>
+  <div class="two-col grow" style="margin-top:6px">
+    <div>
+      <h3>刻意沒做（核心版本範圍）</h3>
+      <ul class="list sm">
+        <li><b>音效全部留空</b>：<code>src/shared.lua</code> 的 <code>Sounds</code> 全是空字串。
+            填上 Roblox 資產的 SoundId 就會有聲音，沒填也不會出錯</li>
+        <li><b>沒有</b>升級、寵物、排行榜（只有 leaderstats 的「金幣」「最大魚」）、任務、交易</li>
+        <li><b>收線是簡化版</b>：客戶端 20Hz 回報自己的條位置，伺服器算進度與判定。
+            理論上可作弊，註解有標</li>
+        <li><b>船是街機操控</b>：<code>VehicleSeat</code> + 伺服器直接設速度，
+            浮力是手寫的簡化模型。開起來穩定，但不會側傾或翻船</li>
+        <li><b>海面上限 2048 × 2048</b>：<code>Ocean</code> 是單一 Part，
+            Roblox 的邊長上限就是 2048</li>
+      </ul>
+    </div>
+    <div>
+      <h3>還沒驗過</h3>
+      <ul class="list sm">
+        <li>操控手感</li>
+        <li>UI 排版細節（小螢幕、不同解析度）</li>
+        <li>多人同時釣魚</li>
+      </ul>
+      <h3 style="margin-top:22px">可以接著做的</h3>
+      <ul class="list sm">
+        <li>音效：12 種魚各一組咬鉤/收線/成交音</li>
+        <li>釣魚竿升級（更長的竿 = 更遠射程 = 更難的魚）</li>
+        <li>排行榜：最大魚紀錄牆</li>
+        <li>天氣與晝夜變化</li>
+        <li>多一兩座小島與魚域</li>
+      </ul>
+      <div class="quote" style="margin-top:22px">
+        要改平衡只需要動 <code>src/shared.lua</code>：<br>
+        <code>Fight</code> / <code>Cast</code> / <code>Boat</code> / <code>Economy</code> 四張表。<br>
+        要加魚種只需要在 <code>Fish</code> 表加一筆 + 在魚域清單加它的 Id，<br>
+        邏輯一行都不用動。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 15 總結 -->
+<section class="slide">
+  <div class="kicker">總結</div>
+  <h2 style="font-size:40px">從「地圖長不出來」到 17 項問題全修完</h2>
+  <div class="rule"></div>
+  <div class="grow" style="display:flex;flex-direction:column;gap:20px">
+    <div class="grid g3">
+      <div class="card">
+        <div class="n">遇到的問題</div>
+        <div class="v" style="font-size:24px;color:var(--warn)">兩大類</div>
+        <div class="d" style="font-size:14px;margin-top:12px">
+          <b>使用者回報的 17 項</b>：功能缺失、比例不對、外觀錯誤<br><br>
+          <b>技術障礙</b>：Studio 缺 8 支 API、注入沙箱限制、
+          PowerShell 編碼、伺服器事件收不到、無法看圖只能靠幾何驗證
+        </div>
+      </div>
+      <div class="card">
+        <div class="n">解題方式</div>
+        <div class="v" style="font-size:24px;color:var(--accent)">先量測再修</div>
+        <div class="d" style="font-size:14px;margin-top:12px">
+          每個症狀都先寫探針腳本<b>量出實際數值</b>，<br>
+          再對照 API 行為找根因，最後<b>修完重測同一個數字</b>。<br><br>
+          例：樹高 2.3–5.1 → 判定為「樹幹直徑」→ 補 90° → 24.7–33.0
+        </div>
+      </div>
+      <div class="card">
+        <div class="n">最後成果</div>
+        <div class="v" style="font-size:24px;color:var(--good)">可玩核心版</div>
+        <div class="d" style="font-size:14px;margin-top:12px">
+          4 座島 + 4 個魚域 + 6 艘船 + 12 種魚<br>
+          完整循環：拋竿 → 咬鉤 → 收線 → 成交 → 賣魚 → 圖鑑<br>
+          1,055 個實例、17 個 Remote、206 項自動化檢查全過
+        </div>
+      </div>
+    </div>
+    <div class="two-col" style="gap:24px">
+      <div class="card">
+        <h3>最關鍵的三個教訓</h3>
+        <ul class="list sm" style="margin-top:4px">
+          <li><b>症狀和原因常常不同層級。</b>「遊戲死掉」不是遊戲邏輯錯，是
+              <code>GetDataStore()</code> 在未發布 place 直接 throw，連帶拖垮後面所有初始化。</li>
+          <li><b>「沒有魚竿」「船不見了」是同一個原因</b>，不是兩個 bug。
+              分開查會花掉雙倍時間。</li>
+          <li><b>Roblox 的預設值常常是直覺的對立面。</b>圓柱的軸是 X、浮力必須完全接管垂直方向、
+              <code>Seabed</code> 不碰撞會吃掉玩家。</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>交付內容</h3>
+        <ul class="list sm" style="margin-top:4px">
+          <li><code>src/</code>　shared / server / client 三個 Lua 檔</li>
+          <li><code>config/world.lua</code>　版圖純資料</li>
+          <li><code>plugin/</code>　外掛 + 地圖建構器</li>
+          <li><code>install.ps1</code>　一鍵打包安裝</li>
+          <li><code>README.md</code>　安裝、玩法、檔案結構、改參數、已知限制</li>
+          <li>已注入並存檔到開啟中的 Studio place（placeId 130309071878675）</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+</div>
+<div id="dots"></div>
+<div id="pageno"></div>
+<div id="hint">← → 翻頁　·　F 全螢幕　·　P 匯出 PDF</div>
+
+<script>
+  const slides = [...document.querySelectorAll('.slide')];
+  const deck = document.getElementById('deck');
+  const dots = document.getElementById('dots');
+  const pageno = document.getElementById('pageno');
+  const bar = document.getElementById('bar');
+  let cur = 0;
+
+  slides.forEach((_, i) => {
+    const d = document.createElement('i');
+    d.onclick = () => go(i);
+    dots.appendChild(d);
+  });
+
+  function scale() {
+    const k = Math.min(innerWidth / 1280, innerHeight / 720);
+    deck.style.setProperty('--k', Math.max(0.2, k).toFixed(4));
+  }
+
+  function go(i) {
+    cur = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((s, k) => s.classList.toggle('on', k === cur));
+    [...dots.children].forEach((d, k) => d.classList.toggle('on', k === cur));
+    pageno.textContent = String(cur + 1).padStart(2, '0') + ' / ' + String(slides.length).padStart(2, '0');
+    bar.style.width = ((cur + 1) / slides.length * 100) + '%';
+  }
+
+  addEventListener('resize', scale);
+
+  addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { go(cur + 1); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(cur - 1); e.preventDefault(); }
+    else if (e.key === 'Home') go(0);
+    else if (e.key === 'End') go(slides.length - 1);
+    else if (e.key === 'f' || e.key === 'F') {
+      document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    }
+    else if (e.key === 'p' || e.key === 'P') print();
+  });
+
+  addEventListener('click', e => { if (!e.target.closest('#dots')) go(cur + 1); });
+
+  scale();
+  go(0);
+</script>
+</body>
+</html>
