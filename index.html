@@ -16,12 +16,28 @@
     background:var(--bg); color:var(--text); overflow:hidden;
     font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei","Heiti TC",system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
+    -webkit-text-size-adjust:100%; text-size-adjust:100%;
   }
-  #deck{position:fixed;inset:0;overflow:hidden;
-        --k:1;transform:scale(var(--k));transform-origin:center center}
+  /* ── 舞台與縮放 ──────────────────────────────────────────────
+     設計尺寸固定 1280×720，再用 zoom 等比縮放到實際視窗。
+     用 zoom 而不是 transform:scale()，是因為 zoom 會真的改變
+     版面尺寸，手機橫向時才能正常捲動／平移。
+     不支援 zoom 的瀏覽器退回 transform（在 JS 裡判斷）。 */
+  #stage{
+    position:fixed;inset:0;display:grid;place-items:center;overflow:hidden;
+    /* manipulation = 允許單指捲動與雙指縮放，但關掉雙擊自動放大。
+       不關掉的話雙擊會同時觸發瀏覽器縮放和翻兩頁。 */
+    touch-action:manipulation;
+    overscroll-behavior:none;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(78,201,232,.10), transparent 60%),
+      radial-gradient(900px 500px at 5% 110%, rgba(255,209,102,.07), transparent 60%),
+      linear-gradient(160deg,var(--bg) 0%,var(--bg2) 100%);
+  }
+  #deck{width:1280px;height:720px;flex:0 0 auto;position:relative}
   .slide{
-    position:absolute;left:50%;top:50%;width:1280px;height:720px;
-    margin:-360px 0 0 -640px; padding:40px 64px 52px;
+    position:absolute;left:0;top:0;width:1280px;height:720px;
+    padding:40px 64px 52px;
     display:none; flex-direction:column; overflow:hidden;
     background:
       radial-gradient(1200px 600px at 80% -10%, rgba(78,201,232,.10), transparent 60%),
@@ -40,6 +56,10 @@
 
   .grow{flex:1;min-height:0}
 
+  /* 資訊量特別大的那一張（17 項問題）需要額外收緊才塞得進 720 */
+  .slide.tight .grid{gap:12px}
+  .slide.tight h3{margin-bottom:7px}
+
   .grid{display:grid;gap:16px}
   .g2{grid-template-columns:1fr 1fr}
   .g3{grid-template-columns:repeat(3,1fr)}
@@ -52,25 +72,31 @@
     border:1px solid var(--line); border-radius:11px; padding:13px 15px 12px;
     display:flex;flex-direction:column;min-height:0;
   }
-  .card .n{font-size:11.5px;color:var(--dim2);letter-spacing:1px;margin-bottom:4px}
-  .card .v{font-size:25px;font-weight:700;line-height:1.1;color:var(--text)}
-  .card .v small{font-size:13px;font-weight:500;color:var(--dim);margin-left:4px}
-  .card .d{font-size:12px;color:var(--dim);margin-top:6px;line-height:1.45}
+  /* 下面的字級是「設計尺寸 1280×720 下的 px」。
+     桌機會被放大到 1.3～1.5 倍，手機橫向會被縮到 0.5 倍左右，
+     所以細部字級刻意不敢低於 12px，不然手機上會小到 6px 以下讀不了。 */
+  .card .n{font-size:12.5px;color:var(--dim2);letter-spacing:1px;margin-bottom:4px}
+  .card .v{font-size:26px;font-weight:700;line-height:1.1;color:var(--text)}
+  .card .v small{font-size:13.5px;font-weight:500;color:var(--dim);margin-left:4px}
+  .card .d{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.45}
   .card.hi{border-color:var(--accent);box-shadow:0 0 0 1px rgba(78,201,232,.25) inset}
   .card.ok{border-color:rgba(93,220,154,.45)}
   .card.ok .v{color:var(--good)}
 
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{color:var(--accent);font-weight:600;font-size:11.5px;letter-spacing:.5px;
+  table{width:100%;border-collapse:collapse;font-size:13.6px}
+  th,td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--accent);font-weight:600;font-size:12.4px;letter-spacing:.5px;
      text-transform:uppercase;white-space:nowrap}
   tr:last-child td{border-bottom:none}
-  td.mono{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:13.5px;
+  td.mono{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:13.6px;
           color:var(--accent2);white-space:nowrap}
+  /* 表格內的稀有度標註。不寫的話會落到瀏覽器預設的 small{smaller}，
+     約 11.3px，手機上縮放後只剩 7px 出頭。 */
+  td small{font-size:12px;color:var(--dim);letter-spacing:.3px}
   .tbl-wrap{background:var(--panel);border:1px solid var(--line);border-radius:11px;
             padding:5px 10px;overflow:auto;min-height:0}
 
-  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12.2px;
         font-weight:600;letter-spacing:.4px;white-space:nowrap}
   .p-fix{background:rgba(93,220,154,.15);color:var(--good);border:1px solid rgba(93,220,154,.35)}
   .p-open{background:rgba(255,123,123,.15);color:var(--bad);border:1px solid rgba(255,123,123,.35)}
@@ -78,10 +104,10 @@
   .p-info{background:rgba(78,201,232,.14);color:var(--accent);border:1px solid rgba(78,201,232,.32)}
 
   ul.list{list-style:none;display:flex;flex-direction:column;gap:8px}
-  ul.list li{position:relative;padding-left:21px;font-size:14px;line-height:1.5;color:var(--text)}
+  ul.list li{position:relative;padding-left:21px;font-size:14.2px;line-height:1.5;color:var(--text)}
   ul.list li::before{content:"";position:absolute;left:4px;top:8px;width:6px;height:6px;
                      border-radius:2px;background:var(--accent)}
-  ul.list.sm li{font-size:12.8px;padding-left:18px;line-height:1.45}
+  ul.list.sm li{font-size:13.4px;padding-left:18px;line-height:1.45}
   ul.list.sm li::before{top:7px;width:5px;height:5px}
 
   .two-col{display:grid;grid-template-columns:1fr 1fr;gap:24px;min-height:0}
@@ -90,12 +116,12 @@
            border-radius:5px}
 
   .quote{border-left:3px solid var(--accent);padding:8px 0 8px 16px;
-         color:var(--dim);font-size:13px;line-height:1.55;font-style:normal}
+         color:var(--dim);font-size:13.4px;line-height:1.55;font-style:normal}
 
-  code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
+  code{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12.6px;
        background:rgba(78,201,232,.10);border:1px solid rgba(78,201,232,.2);
        padding:1px 5px;border-radius:4px;color:var(--accent)}
-  pre{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:11.5px;
+  pre{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12.4px;
       line-height:1.5;background:rgba(0,0,0,.32);border:1px solid var(--line);
       border-radius:9px;padding:11px 13px;overflow:auto;color:#cfe3f2}
   pre .c{color:var(--dim2)}
@@ -103,31 +129,100 @@
   pre .b{color:var(--bad)}
   pre .y{color:var(--accent2)}
 
-  /* chrome */
-  #bar{position:fixed;left:0;top:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--good));
-       z-index:50;transition:width .3s ease}
-  #dots{position:fixed;right:26px;bottom:22px;display:flex;gap:7px;z-index:50}
-  #dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.20);cursor:pointer;
-          transition:.2s;display:block}
-  #dots i.on{background:var(--accent);transform:scale(1.4)}
-  #pageno{position:fixed;left:72px;bottom:20px;color:var(--dim2);font-size:12.5px;
-          font-family:ui-monospace,Consolas,monospace;z-index:50;letter-spacing:1px}
-  #hint{position:fixed;right:26px;top:22px;color:var(--dim2);font-size:12px;z-index:50;
-        letter-spacing:.5px}
+  /* ── UI chrome ──────────────────────────────────────────────
+     這一層刻意不跟著 zoom 縮放（維持真實大小，觸控才點得準），
+     但要避開手機的安全區：瀏海靈與 iPhone 的 home 指示條。 */
+  #ui{
+    position:fixed;inset:0;z-index:50;pointer-events:none;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  #ui > *{pointer-events:auto}
 
+  #bar{position:absolute;left:0;top:0;right:0;height:3px;
+       background:linear-gradient(90deg,var(--accent),var(--good));transition:width .3s ease}
+
+  #dots{position:absolute;right:22px;
+        bottom:calc(16px + env(safe-area-inset-bottom));display:flex;gap:6px}
+  #dots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.20);
+          cursor:pointer;transition:.2s;display:block}
+  #dots i.on{background:var(--accent);transform:scale(1.4)}
+
+  #pageno{position:absolute;left:26px;
+          bottom:calc(16px + env(safe-area-inset-bottom));color:var(--dim2);font-size:12.5px;
+          font-family:ui-monospace,Consolas,monospace;letter-spacing:1px}
+
+  #hint{position:absolute;right:24px;top:calc(18px + env(safe-area-inset-top));
+        color:var(--dim2);font-size:12px;letter-spacing:.5px}
+
+  /* 縮放切換鈕：整張塞不下時可以放大後用手指拖動看 */
+  #zoomBtn{position:absolute;left:22px;top:calc(14px + env(safe-area-inset-top));
+           background:rgba(21,42,62,.85);border:1px solid var(--line);color:var(--dim);
+           border-radius:999px;padding:5px 13px;font-size:12px;cursor:pointer;
+           font-family:inherit;backdrop-filter:blur(6px)}
+  #zoomBtn:hover{color:var(--text);border-color:var(--accent)}
+  #zoomBtn:active{transform:scale(.96)}
+
+  /* 觸控裝置：隱藏鍵盤提示，圓點縮小並置中 */
+  html.touch #hint{display:none}
+  html.touch #dots{left:50%;right:auto;transform:translateX(-50%);gap:5px}
+  html.touch #dots i{width:6px;height:6px}
+  html.touch #pageno{left:auto;right:14px;font-size:11.5px}
+  html.touch #hintTouch{display:block}
+  #hintTouch{display:none;position:absolute;left:50%;transform:translateX(-50%);
+             top:calc(14px + env(safe-area-inset-top));color:var(--dim2);font-size:11.5px;
+             letter-spacing:.5px;pointer-events:none}
+
+  /* ── 直向提示 ──────────────────────────────────────────────
+     16:9 的投影片塞進 0.46:1 的直向螢幕，最小字級會掉到 3px。
+     與其給一個看不了的畫面，不如直接請使用者轉橫向。 */
+  #rotate{
+    position:fixed;inset:0;z-index:80;display:none;
+    flex-direction:column;align-items:center;justify-content:center;gap:20px;
+    background:linear-gradient(160deg,var(--bg) 0%,var(--bg2) 100%);
+    padding:32px;text-align:center;
+  }
+  html.touch.portrait #rotate{display:flex}
+  /* 使用者按「仍然繼續看直向」之後就不再打擾 */
+  html.touch.portrait.showRotate #rotate{display:none}
+  #rotate .icon{width:56px;height:92px;border:3px solid var(--accent);border-radius:11px;
+                position:relative;animation:tilt 2.2s ease-in-out infinite}
+  #rotate .icon::after{content:"";position:absolute;left:50%;bottom:7px;transform:translateX(-50%);
+                      width:20px;height:3px;background:var(--accent);border-radius:2px}
+  @keyframes tilt{
+    0%,32%{transform:rotate(0)}
+    62%,100%{transform:rotate(-90deg)}
+  }
+  @media (prefers-reduced-motion:reduce){ #rotate .icon{animation:none} }
+  #rotate h2{font-size:21px;margin:0}
+  #rotate p{color:var(--dim);font-size:14px;line-height:1.6;margin:0;max-width:280px}
+  #rotate button{background:transparent;border:1px solid var(--line);color:var(--dim2);
+                 border-radius:999px;padding:9px 18px;font-size:13px;cursor:pointer;
+                 font-family:inherit;margin-top:6px}
+  #rotate button:hover{color:var(--text);border-color:var(--accent)}
+
+  /* 列印／匯出 PDF：15 張依序堆疊成一頁一張。
+     這裡幾乎每一條都要 !important，因為 JS 會把 zoom、overflow、
+     place-items 寫成內聯樣式，而 .slide.on 的 animation 又比 .slide 具優先，
+     不加 !important 會被蓋掉：印出來的第 1 張會被停在淡入動畫的起點
+     （translateY(14px)），頂端被切掉 14px。 */
   @media print{
     @page{size:1280px 720px;margin:0}
-    body{overflow:visible;background:#fff}
-    #deck{position:static;transform:none;overflow:visible}
-    #dots,#pageno,#hint,#bar{display:none}
-    .slide{display:flex!important;position:relative;left:auto;top:auto;margin:0;
-           transform:none;width:1280px;height:720px;page-break-after:always;
-           animation:none}
+    html,body{overflow:visible!important;background:#fff}
+    #stage{position:static!important;display:block!important;overflow:visible!important;
+           place-items:normal!important;background:none!important}
+    #deck{zoom:1!important;transform:none!important;width:1280px;height:auto}
+    #ui,#rotate{display:none!important}
+    .slide{display:flex!important;position:relative!important;left:auto!important;top:auto!important;
+           margin:0!important;transform:none!important;animation:none!important;
+           width:1280px;height:720px;overflow:hidden;
+           page-break-after:always;break-after:page}
+    .slide:last-child{page-break-after:auto;break-after:auto}
   }
 </style>
 </head>
 <body>
-<div id="bar"></div>
+<div id="stage">
 <div id="deck">
 
 <!-- 1 封面 -->
@@ -232,11 +327,11 @@
 </section>
 
 <!-- 4 使用者回報總覽 -->
-<section class="slide">
+<section class="slide tight">
   <h2>使用者回報的問題：17 項，三輪</h2>
   <div class="rule"></div>
-  <p class="sub" style="margin:-8px 0 22px">全部已修正並實測驗證。</p>
-  <div class="grow" style="display:flex;flex-direction:column;gap:16px">
+  <p class="sub" style="margin:-8px 0 14px">全部已修正並實測驗證。</p>
+  <div class="grow" style="display:flex;flex-direction:column;gap:13px">
 
     <div>
       <h3>第二輪　<span class="pill p-fix">4 / 4 已修</span></h3>
@@ -811,9 +906,23 @@ plank.CFrame = CFrame.new(pos + Vector3.new(bx, by, 0))
 </section>
 
 </div>
-<div id="dots"></div>
-<div id="pageno"></div>
-<div id="hint">← → 翻頁　·　F 全螢幕　·　P 匯出 PDF</div>
+</div>
+
+<div id="ui">
+  <div id="bar"></div>
+  <div id="dots"></div>
+  <div id="pageno"></div>
+  <div id="hint">← → 翻頁　·　F 全螢幕　·　P 匯出 PDF</div>
+  <div id="hintTouch">點一下翻頁　·　左右滑動切換</div>
+  <button id="zoomBtn" type="button">放大</button>
+</div>
+
+<div id="rotate">
+  <div class="icon"></div>
+  <h2>請把手機轉成橫向</h2>
+  <p>這份簡報是 16:9 的寬螢幕版面，直向塞不下來，字會小到看不清。轉成橫向就能正常閱讀。</p>
+  <button id="rotateSkip" type="button">仍然繼續看直向</button>
+</div>
 
 <script>
   const slides = [...document.querySelectorAll('.slide')];
@@ -821,7 +930,19 @@ plank.CFrame = CFrame.new(pos + Vector3.new(bx, by, 0))
   const dots = document.getElementById('dots');
   const pageno = document.getElementById('pageno');
   const bar = document.getElementById('bar');
+  const zoomBtn = document.getElementById('zoomBtn');
+  const stage = document.getElementById('stage');
+  const root = document.documentElement;
+
+  const DW = 1280, DH = 720;      // 投影片的設計尺寸
   let cur = 0;
+
+  const supportsZoom = CSS.supports('zoom', '1');
+  const isTouch = matchMedia('(hover: none) and (pointer: coarse)').matches
+               || navigator.maxTouchPoints > 0;
+  // 觸控裝置預設就放大：16:9 縮到「整張塞進去」時，手機上最小字級
+  // 會掉到 6px 以下，等於看不到。桌機則預設看整張。
+  let zoomed = isTouch;
 
   slides.forEach((_, i) => {
     const d = document.createElement('i');
@@ -829,9 +950,60 @@ plank.CFrame = CFrame.new(pos + Vector3.new(bx, by, 0))
     dots.appendChild(d);
   });
 
+  // 取實際可視區大小。iOS 的網址列會收放，innerHeight 會跳動，
+  // visualViewport 才是使用者真正看到的範圍。
+  function viewport() {
+    const vv = window.visualViewport;
+    return {
+      w: Math.round(vv ? vv.width : innerWidth),
+      h: Math.round(vv ? vv.height : innerHeight),
+    };
+  }
+
+  // 三種適配方式。16:9 的投影片要塞進 0.46:1 的直向手機螢幕，
+  // 只能擇一：看整張（字小到讀不了）還是放大（看不全），
+  // 所以直向時先跳出提示請使用者轉橫向。
+  //
+  //   整張   contain  k = min(w/DW, h/DH)   置中、不捲動
+  //   寬度   wide     k = w/DW              填滿寬度，太高就上下拖
+  //   直向   col      k = h/DH              填滿高度，太寬就左右拖
   function scale() {
-    const k = Math.min(innerWidth / 1280, innerHeight / 720);
-    deck.style.setProperty('--k', Math.max(0.2, k).toFixed(4));
+    const { w, h } = viewport();
+    const portrait = h > w * 1.05;
+
+    root.classList.toggle('touch', isTouch);
+    root.classList.toggle('portrait', portrait);
+
+    let k;
+    if (!zoomed) {
+      k = Math.min(w / DW, h / DH);     // 整張塞進螢幕
+    } else if (portrait) {
+      k = h / DH;                        // 直向：填滿高度，左右拖
+    } else {
+      k = w / DW;                        // 直向以外：填滿寬度，上下拖
+    }
+
+    // ── 對齊方式 ────────────────────────────────────────────
+    // 置中有個陷阱：項目比容器大時，CSS 會把它置中，也就是上下各溢出��半，
+    // 溢出到上方的那一半永遠捲不到（scrollTop 從 0 開始，往上捲不了）。
+    // 所以哪一軸放得下就置中，放不下就靠開頭，讓溢出方向可以捲。
+    const visH = DH * k, visW = DW * k;
+    const align = (visH <= h ? 'center' : 'start') + ' '
+                + (visW <= w ? 'center' : 'start');
+
+    if (supportsZoom) {
+      deck.style.zoom = k.toFixed(4);
+      deck.style.transform = '';
+    } else {
+      deck.style.transform = 'scale(' + k.toFixed(4) + ')';
+    }
+
+    stage.style.placeItems = align;
+    stage.style.overflow = (visH > h || visW > w) ? 'auto' : 'hidden';
+
+    zoomBtn.textContent = zoomed ? '看整張' : '放大';
+    zoomBtn.hidden = false;
+    zoomBtn.title = '目前：' + (zoomed ? '放大（可拖動）' : '整張（字較小）');
   }
 
   function go(i) {
@@ -840,9 +1012,20 @@ plank.CFrame = CFrame.new(pos + Vector3.new(bx, by, 0))
     [...dots.children].forEach((d, k) => d.classList.toggle('on', k === cur));
     pageno.textContent = String(cur + 1).padStart(2, '0') + ' / ' + String(slides.length).padStart(2, '0');
     bar.style.width = ((cur + 1) / slides.length * 100) + '%';
+    stage.scrollLeft = 0;
+    stage.scrollTop = 0;
   }
 
-  addEventListener('resize', scale);
+  // iOS 網址列收放時會連續觸發 resize，直接縮放會看到整張投影片在跳。
+  // debounce 一下，只在真的停頓後才重算。
+  let t = null;
+  function scheduleScale() {
+    clearTimeout(t);
+    t = setTimeout(scale, 120);
+  }
+  addEventListener('resize', scheduleScale);
+  addEventListener('orientationchange', scheduleScale);
+  if (window.visualViewport) visualViewport.addEventListener('resize', scheduleScale);
 
   addEventListener('keydown', e => {
     if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { go(cur + 1); e.preventDefault(); }
@@ -855,7 +1038,65 @@ plank.CFrame = CFrame.new(pos + Vector3.new(bx, by, 0))
     else if (e.key === 'p' || e.key === 'P') print();
   });
 
-  addEventListener('click', e => { if (!e.target.closest('#dots')) go(cur + 1); });
+  // ── 觸控：滑動切換 + 點擊翻頁 ──────────────────────────────
+  // touchend 之後瀏覽器還會再送一次 click，如果不去重，
+  // 滑一下會翻兩頁，雙擊也會翻兩頁還順便觸發瀏覽器縮放。
+  // performance.now() 也是從 0 開始的，所以這裡不能用 0 當「尚未手勢過」的哨兵值，
+  // 否則頁面載入後前 400ms 的點擊會被整片吞掉。
+  let lastGesture = -Infinity;
+  let tx = 0, ty = 0, moved = false;
+
+  deck.addEventListener('touchstart', e => {
+    const t = e.changedTouches[0];
+    tx = t.clientX; ty = t.clientY; moved = false;
+  }, { passive: true });
+
+  deck.addEventListener('touchmove', e => {
+    const t = e.changedTouches[0];
+    if (Math.abs(t.clientX - tx) > 12 || Math.abs(t.clientY - ty) > 12) moved = true;
+  }, { passive: true });
+
+  deck.addEventListener('touchend', e => {
+    if (!moved) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - tx, dy = t.clientY - ty;
+    if (Math.abs(dx) <= 45 || Math.abs(dx) <= Math.abs(dy)) return;
+
+    // 放大模式下畫面比螢幕大，這時橫向拖曳是「看投影片的左右」而不是翻頁。
+    // 只有已經拖到底、沒有東西可以再拖了，才把這次滑動當成翻頁
+    // （跟 ScrollViewings 邊界的行為一致）。
+    if (stage.scrollWidth > stage.clientWidth + 1) {
+      const atStart = stage.scrollLeft <= 0;
+      const atEnd = stage.scrollLeft >= stage.scrollWidth - stage.clientWidth - 1;
+      if ((dx < 0 && !atEnd) || (dx > 0 && !atStart)) return;
+    }
+
+    lastGesture = performance.now();
+    go(cur + (dx < 0 ? 1 : -1));
+  }, { passive: true });
+
+  addEventListener('click', e => {
+    if (e.target.closest('#ui button, #rotate button, #dots')) return;
+    // 滑動後緊接著觸發的 click 不算
+    if (performance.now() - lastGesture < 400) return;
+    go(cur + 1);
+  });
+
+  // ── 直向提示 ──────────────────────────────────────────────
+  // 使用者按「仍然繼續看直向」之後，這次瀏覽就不再打擾。
+  let rotateSkipped = false;
+  try { rotateSkipped = sessionStorage.getItem('rot-skip') === '1'; } catch (_) {}
+  if (rotateSkipped) root.classList.add('showRotate');
+  document.getElementById('rotateSkip').onclick = () => {
+    rotateSkipped = true;
+    try { sessionStorage.setItem('rot-skip', '1'); } catch (_) {}
+    root.classList.add('showRotate');
+    // 直向要看得懂就得放大到填滿高度，改成左右拖
+    zoomed = true;
+    scale();
+  };
+
+  zoomBtn.onclick = () => { zoomed = !zoomed; scale(); };
 
   scale();
   go(0);
